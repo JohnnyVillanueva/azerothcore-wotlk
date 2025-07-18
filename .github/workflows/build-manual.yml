@@ -1,0 +1,49 @@
+name: Manual Windows Build & Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: windows-2022
+
+    env:
+      BUILD_TYPE: Release
+      REPO_DIR: ${{ github.workspace }}
+      BUILD_DIR: ${{ github.workspace }}\build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Create build directory
+        run: mkdir build
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Package binaries (ZIP)
+        run: Compress-Archive -Path build\${{ env.BUILD_TYPE }}\* -DestinationPath build\windows_build.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows_build
+          path: build/windows_build.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: manual-build-${{ github.run_number }}
+          name: Manual Build ${{ github.run_number }}
+          body: |
+            Build triggered manually.
+          files: build/windows_build.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
